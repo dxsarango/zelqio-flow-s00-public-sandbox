@@ -1,0 +1,31 @@
+name: bot-pr
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: synthetic revision number
+        required: true
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REV: ${{ inputs.revision }}
+        run: |
+          set -e
+          branch="bot/candidate-$REV"
+          git config user.name "sandbox-bot"
+          git config user.email "sandbox-bot@users.noreply.github.com"
+          git checkout -b "$branch"
+          sed -i "s/\"revision\": [0-9]*/\"revision\": $REV/" fixture.json
+          git commit -am "test: bot candidate $REV"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "test: bot candidate $REV" --body "Synthetic candidate opened by the workflow identity."
+          gh workflow run fixture.yml --ref "$branch"
